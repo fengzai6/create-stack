@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  CATEGORY_IDS,
   getCategories,
   getTemplatesByCategory,
   getOptionalDependenciesForTemplate,
@@ -10,39 +9,50 @@ import {
 } from '../src/config';
 
 test('returns expected category ids in display order', () => {
-  assert.deepEqual(CATEGORY_IDS, ['frontend', 'backend', 'fullstack']);
-  assert.deepEqual(
-    getCategories().map((category) => category.id),
-    ['frontend', 'backend', 'fullstack']
-  );
+  const categories = getCategories();
+  assert.ok(categories.length > 0);
+  assert.deepEqual(categories.map((category) => category.id), ['frontend']);
 });
 
 test('returns template list by category', () => {
-  const frontendTemplates = getTemplatesByCategory('frontend');
-  assert.equal(frontendTemplates.length, 1);
-  assert.equal(frontendTemplates[0]?.id, 'react');
-
-  const backendTemplates = getTemplatesByCategory('backend');
-  assert.equal(backendTemplates.length, 1);
-  assert.equal(backendTemplates[0]?.id, 'express');
+  const categories = getCategories();
+  for (const category of categories) {
+    const templates = getTemplatesByCategory(category.id);
+    assert.deepEqual(
+      templates.map((template) => template.id),
+      category.templates.map((template) => template.id)
+    );
+  }
 });
 
 test('returns optional dependencies only when template defines them', () => {
-  const reactDependencies = getOptionalDependenciesForTemplate('react');
-  assert.ok(reactDependencies.length > 0);
-  assert.ok(reactDependencies.some((dependency) => dependency.name === 'antd'));
+  const reactTailwindDependencies = getOptionalDependenciesForTemplate('react-tailwind');
+  assert.ok(reactTailwindDependencies.length > 0);
+  assert.ok(reactTailwindDependencies.some((dependency) => dependency.name === 'antd'));
   assert.ok(
-    reactDependencies.some((dependency) => dependency.name === '@ant-design/icons')
+    reactTailwindDependencies.some((dependency) => dependency.name === '@ant-design/icons')
   );
 
-  const defaultSelected = reactDependencies
+  const defaultSelected = reactTailwindDependencies
     .filter((dependency) => dependency.defaultSelected)
     .map((dependency) => dependency.name)
     .sort();
   assert.deepEqual(defaultSelected, ['antd', 'axios', 'zustand']);
 
-  const expressDependencies = getOptionalDependenciesForTemplate('express');
-  assert.deepEqual(expressDependencies, []);
+  const reactTailwindAntdDependencies = getOptionalDependenciesForTemplate(
+    'react-tailwind-antd'
+  );
+  assert.ok(
+    !reactTailwindAntdDependencies.some((dependency) => dependency.name === 'antd')
+  );
+  assert.ok(
+    !reactTailwindAntdDependencies.some(
+      (dependency) => dependency.name === '@ant-design/icons'
+    )
+  );
+
+  const unknownTemplateDependencies = getOptionalDependenciesForTemplate('unknown-template');
+  assert.deepEqual(unknownTemplateDependencies, []);
 });
 
 test('returns pinned optional dependency versions', () => {

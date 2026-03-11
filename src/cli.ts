@@ -1,43 +1,81 @@
 #!/usr/bin/env node
 
-import { access, readdir } from 'node:fs/promises';
+import { access, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import prompts from 'prompts';
+import * as clack from '@clack/prompts';
 
 import {
   getCategories,
   getOptionalDependenciesForTemplate,
   getTemplatesByCategory
 } from './config';
-import { createProject, detectPackageManager, type PackageManager } from './create';
-import type { CategoryId, OptionalDependencyDefinition, TemplateId } from './types';
+import {
+  createProject,
+  detectPackageManager,
+  type PackageManager
+} from './create';
+import { formatTargetDir, isTrulyEmptyDirectory, parseCliArgs } from './cli-options';
+import type {
+  DisplayColor,
+  OptionalDependencyDefinition,
+  TemplateDefinition,
+} from './types';
 
 const CANCELLED_MESSAGE = 'PROMPT_CANCELLED';
 const BACK_TO_CATEGORY = '__back_to_category__' as const;
-type TemplateSelectValue = TemplateId | typeof BACK_TO_CATEGORY;
+const DEFAULT_TARGET_DIR = 'my-project';
+
+type TemplateSelectValue = string | typeof BACK_TO_CATEGORY;
+type DirectoryStrategy = 'empty' | 'overwrite' | 'ignore';
 
 /**
  * CLI 主流程：
- * 1) 采集用户输入
- * 2) 创建项目并安装依赖
- * 3) 输出下一步操作提示
+ * 1) 解析参数
+ * 2) 处理交互/非交互输入
+ * 3) 处理目录冲突策略
+ * 4) 创建项目并按需安装依赖
  */
 async function main(): Promise<void> {
   try {
-    // 在流程开始时统一推断包管理器，后续创建与提示都复用同一结果。
-    const packageManager = detectPackageManager();
-    const projectName = await askProjectName();
-    const templateId = await askTemplateWithCategoryBack();
-    const optionalDependencies = getOptionalDependenciesForTemplate(templateId);
-    const selectedDependencies = await askOptionalDependencies(optionalDependencies);
-    const shouldInstallDependencies = await askInstallChoice(packageManager);
+    const args = parseCliArgs(process.argv.slice(2));
+    if (args.help) {
+      console.log(getHelpMessage());
+      return;
+    }
 
+    const interactive = args.interactive ?? process.stdin.isTTY;
+    if (interactive) {
+      clack.intro(colorize('cyan', 'create-fz-stack'));
+    }
+
+    const packageManager = detectPackageManager();
+
+    const projectName = await resolveProjectName(args.targetDir, interactive);
+    const directoryStrategy = await resolveDirectoryStrategy(
+      projectName,
+      args.overwrite,
+      interactive
+    );
+
+    const templateId = await resolveTemplate(args.template, interactive);
+    const optionalDependencies = getOptionalDependenciesForTemplate(templateId);
+    const selectedDependencies = interactive
+      ? await askOptionalDependencies(optionalDependencies)
+      : optionalDependencies
+          .filter((dependency) => dependency.defaultSelected)
+          .map((dependency) => dependency.name);
+
+    const shouldInstallDependencies =
+      args.immediate ?? (interactive ? await askInstallChoice(packageManager) : false);
+
+    logStep(`Scaffolding with template: ${templateId}`);
     const targetDir = await createProject({
       projectName,
       templateFolder: templateId,
       selectedDependencies,
       shouldInstallDependencies,
+      allowNonEmptyTarget: directoryStrategy === 'ignore',
       packageManager
     });
 
@@ -48,84 +86,226 @@ async function main(): Promise<void> {
       packageManager
     });
   } catch (error) {
-    // 用户主动取消属于正常中断，使用可读提示并返回非 0 退出码。
     if (error instanceof Error && error.message === CANCELLED_MESSAGE) {
-      console.log('\nCancelled.');
       process.exit(1);
     }
 
-    // 其余异常统一按失败处理，避免静默退出。
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`\nFailed to create project: ${message}`);
+    clack.log.error(`Failed to create project: ${message}`);
     process.exit(1);
   }
 }
 
-/** 询问项目名，并复用目录校验逻辑阻止覆盖非空目录。 */
-async function askProjectName(): Promise<string> {
-  const response = await prompts(
-    {
-      type: 'text',
-      name: 'projectName',
-      message: 'Project name',
-      validate: validateProjectName
-    },
-    { onCancel: handleCancel }
-  );
+/**
+ * 解析项目目录：
+ * - 命令行传入则直接使用
+ * - 交互模式下询问
+ * - 非交互模式下使用默认目录
+ */
+async function resolveProjectName(
+  argTargetDir: string | undefined,
+  interactive: boolean
+): Promise<string> {
+  if (argTargetDir !== undefined) {
+    if (argTargetDir.length === 0) {
+      throw new Error('Invalid target directory');
+    }
+    return argTargetDir;
+  }
 
-  return response.projectName as string;
+  if (!interactive) {
+    return DEFAULT_TARGET_DIR;
+  }
+
+  const result = await clack.text({
+    message: 'Project name',
+    defaultValue: DEFAULT_TARGET_DIR,
+    placeholder: DEFAULT_TARGET_DIR,
+    validate: (rawProjectName) => {
+      // 直接回车时允许使用默认项目名。
+      if (!rawProjectName || rawProjectName.trim().length === 0) {
+        return undefined;
+      }
+      const projectName = formatTargetDir(rawProjectName ?? '');
+      return projectName ? undefined : 'Invalid project name';
+    }
+  });
+
+  const projectName = ensureNotCancel(result);
+  const normalizedProjectName = formatTargetDir(projectName || DEFAULT_TARGET_DIR);
+  if (!normalizedProjectName) {
+    throw new Error('Invalid project name');
+  }
+
+  return normalizedProjectName;
 }
 
-/** 询问模板分类。 */
-async function askCategory(): Promise<CategoryId> {
-  const categories = getCategories();
-  const response = await prompts(
-    {
-      type: 'select',
-      name: 'categoryId',
-      message: 'Select category',
-      choices: categories.map((category) => ({
-        title: category.id,
-        value: category.id,
-        description: category.label
-      }))
-    },
-    { onCancel: handleCancel }
-  );
+/**
+ * 处理目标目录冲突：
+ * - 空目录：直接继续
+ * - --overwrite：清空后继续
+ * - 交互模式：提示三选项（取消/清空/忽略）
+ * - 非交互模式：默认取消并提示使用 --overwrite
+ */
+async function resolveDirectoryStrategy(
+  targetDir: string,
+  overwriteByArg: boolean,
+  interactive: boolean
+): Promise<DirectoryStrategy> {
+  const entries = await readTargetDirEntries(targetDir);
+  if (!entries || isTrulyEmptyDirectory(entries)) {
+    return 'empty';
+  }
 
-  return response.categoryId as CategoryId;
+  if (overwriteByArg) {
+    await emptyDir(targetDir);
+    logStep(`Removed existing files in ${targetDir}`);
+    return 'overwrite';
+  }
+
+  if (!interactive) {
+    throw new Error(`Target directory "${targetDir}" is not empty. Use --overwrite to continue.`);
+  }
+
+  const result = await clack.select({
+    message:
+      (targetDir === '.' ? 'Current directory' : `Target directory "${targetDir}"`) +
+      ' is not empty. How do you want to proceed?',
+    options: [
+      { label: 'Cancel operation', value: 'no' },
+      { label: 'Remove existing files and continue', value: 'yes' },
+      { label: 'Ignore existing files and continue', value: 'ignore' }
+    ],
+    initialValue: 'no'
+  });
+
+  const overwriteMode = ensureNotCancel(result) as 'no' | 'yes' | 'ignore';
+  if (overwriteMode === 'no') {
+    cancelOperation();
+  }
+
+  if (overwriteMode === 'yes') {
+    await emptyDir(targetDir);
+    logStep(`Removed existing files in ${targetDir}`);
+    return 'overwrite';
+  }
+
+  return 'ignore';
+}
+
+/** 读取目录项；目录不存在时返回 null。 */
+async function readTargetDirEntries(targetDir: string): Promise<string[] | null> {
+  try {
+    await access(targetDir);
+  } catch {
+    return null;
+  }
+
+  return readdir(targetDir);
+}
+
+/** 清空目录（保留 .git）。 */
+async function emptyDir(targetDir: string): Promise<void> {
+  const entries = await readdir(targetDir);
+  for (const entry of entries) {
+    if (entry === '.git') {
+      continue;
+    }
+    await rm(path.resolve(targetDir, entry), { recursive: true, force: true });
+  }
+}
+
+/**
+ * 解析模板：
+ * - 传了合法 --template 就直接用
+ * - 传了非法模板：交互模式回退到选择；非交互直接报错
+ * - 未传模板：交互选择；非交互默认 react
+ */
+async function resolveTemplate(
+  argTemplate: string | undefined,
+  interactive: boolean
+): Promise<string> {
+  const templates = getAllTemplates();
+  if (templates.length === 0) {
+    throw new Error('No templates configured');
+  }
+  const templateIds = templates.map((template) => template.id);
+
+  if (argTemplate) {
+    if (templateIds.includes(argTemplate)) {
+      return argTemplate;
+    }
+
+    if (!interactive) {
+      throw new Error(`Invalid template: ${argTemplate}. Available: ${templateIds.join(', ')}`);
+    }
+
+    logWarn(`"${argTemplate}" is not a valid template. Please choose from list.`);
+  }
+
+  if (!interactive) {
+    return templates[0].id;
+  }
+
+  return askTemplateWithCategoryBack();
+}
+
+/** 获取全部可用模板定义（用于参数校验与 help 文案）。 */
+function getAllTemplates(): TemplateDefinition[] {
+  const templates = getCategories().flatMap((category) => category.templates);
+  const seen = new Set<string>();
+  const uniqueTemplates: TemplateDefinition[] = [];
+
+  for (const template of templates) {
+    if (seen.has(template.id)) {
+      continue;
+    }
+    seen.add(template.id);
+    uniqueTemplates.push(template);
+  }
+
+  return uniqueTemplates;
+}
+
+/** 询问模板分类（仅展示 label，无 description）。 */
+async function askCategory(): Promise<string> {
+  const categories = getCategories();
+  const result = await clack.select({
+    message: 'Select category',
+    options: categories.map((category) => ({
+      label: colorize(category.color, category.label),
+      value: category.id
+    }))
+  });
+
+  return ensureNotCancel(result) as string;
 }
 
 /** 在选定分类后询问具体模板。 */
-async function askTemplate(categoryId: CategoryId): Promise<TemplateSelectValue> {
+async function askTemplate(categoryId: string): Promise<TemplateSelectValue> {
   const templates = getTemplatesByCategory(categoryId);
 
-  const response = await prompts(
-    {
-      type: 'select',
-      name: 'templateId',
-      message: 'Select template',
-      choices: [
-        ...templates.map((template) => ({
-          title: template.id,
-          value: template.id,
-          description: template.description
-        })),
-        {
-          title: '← Back to category',
-          value: BACK_TO_CATEGORY,
-          description: 'Choose category again'
-        }
-      ]
-    },
-    { onCancel: handleCancel }
-  );
+  const result = await clack.select({
+    message: 'Select template',
+    options: [
+      ...templates.map((template) => ({
+        label: colorize(template.color, template.label),
+        value: template.id,
+        hint: template.description
+      })),
+      {
+        label: '← Back to category',
+        value: BACK_TO_CATEGORY,
+        hint: 'Choose category again'
+      }
+    ]
+  });
 
-  return response.templateId as TemplateSelectValue;
+  return ensureNotCancel(result) as TemplateSelectValue;
 }
 
 /** 支持在模板选择步骤返回上一级分类选择。 */
-async function askTemplateWithCategoryBack(): Promise<TemplateId> {
+async function askTemplateWithCategoryBack(): Promise<string> {
   while (true) {
     const categoryId = await askCategory();
     const templateSelection = await askTemplate(categoryId);
@@ -136,10 +316,7 @@ async function askTemplateWithCategoryBack(): Promise<TemplateId> {
   }
 }
 
-/**
- * 询问可选依赖（支持多选）。
- * 若模板没有可选依赖，直接返回空数组并跳过该步骤。
- */
+/** 询问可选依赖（支持多选）。无可选依赖则跳过。 */
 async function askOptionalDependencies(
   dependencies: OptionalDependencyDefinition[]
 ): Promise<string[]> {
@@ -147,73 +324,45 @@ async function askOptionalDependencies(
     return [];
   }
 
-  const response = await prompts(
-    {
-      type: 'multiselect',
-      name: 'selectedDependencies',
-      message: 'Select optional dependencies',
-      hint: '- Space to toggle. Enter to submit',
-      choices: dependencies.map((dependency) => ({
-        title: dependency.name,
-        value: dependency.name,
-        selected: dependency.defaultSelected
-      }))
-    },
-    { onCancel: handleCancel }
-  );
+  const result = await clack.multiselect({
+    message: 'Select optional dependencies (Space to toggle, Enter to submit)',
+    options: dependencies.map((dependency) => ({
+      label: `${dependency.name} (${dependency.version})`,
+      value: dependency.name,
+      hint: dependency.defaultSelected ? 'default selected' : undefined
+    })),
+    initialValues: dependencies
+      .filter((dependency) => dependency.defaultSelected)
+      .map((dependency) => dependency.name),
+    required: false
+  });
 
-  return (response.selectedDependencies as string[]) ?? [];
+  return ensureNotCancel(result) as string[];
 }
 
 /** 询问是否立即安装依赖。 */
 async function askInstallChoice(packageManager: PackageManager): Promise<boolean> {
-  const response = await prompts(
-    {
-      type: 'select',
-      name: 'shouldInstallDependencies',
-      message: `Install dependencies now with ${packageManager}?`,
-      choices: [
-        { title: 'Yes', value: true },
-        { title: 'No', value: false }
-      ],
-      initial: 0
-    },
-    { onCancel: handleCancel }
-  );
+  const result = await clack.confirm({
+    message: `Install dependencies now with ${packageManager}?`,
+    initialValue: false
+  });
 
-  return Boolean(response.shouldInstallDependencies);
+  return ensureNotCancel(result) as boolean;
 }
 
-/**
- * 校验项目名对应目录是否可用：
- * - 目录不存在：可用
- * - 目录存在但为空：可用
- * - 目录存在且非空：不可用
- */
-async function validateProjectName(rawProjectName: string): Promise<true | string> {
-  const projectName = rawProjectName.trim();
-  if (!projectName) {
-    return 'Project name is required';
-  }
-
-  const targetDir = path.resolve(process.cwd(), projectName);
-  try {
-    await access(targetDir);
-  } catch {
-    return true;
-  }
-
-  const entries = await readdir(targetDir);
-  if (entries.length > 0) {
-    return 'Target directory already exists and is not empty';
-  }
-
-  return true;
-}
-
-/** 将 prompts 的取消动作统一转换为可识别异常。 */
-function handleCancel(): never {
+/** 将 prompts 取消动作统一转换为可识别异常。 */
+function cancelOperation(): never {
+  clack.cancel('Operation cancelled.');
   throw new Error(CANCELLED_MESSAGE);
+}
+
+/** 统一处理 clack 的取消返回值。 */
+function ensureNotCancel<T>(result: T | symbol): T {
+  if (clack.isCancel(result)) {
+    cancelOperation();
+  }
+
+  return result as T;
 }
 
 /** 输出创建成功后的下一步操作提示。 */
@@ -223,15 +372,17 @@ function printSuccessMessage(input: {
   shouldInstallDependencies: boolean;
   packageManager: PackageManager;
 }): void {
-  console.log('\nProject created successfully.');
-  console.log(`Location: ${input.targetDir}`);
-
-  console.log('\nNext steps:');
-  console.log(`  cd ${input.projectName}`);
+  const lines: string[] = [];
+  lines.push(`Location: ${input.targetDir}`);
+  lines.push('');
+  lines.push('Next steps:');
+  lines.push(`  cd ${input.projectName}`);
   if (!input.shouldInstallDependencies) {
-    console.log(`  ${getInstallCommand(input.packageManager)}`);
+    lines.push(`  ${getInstallCommand(input.packageManager)}`);
   }
-  console.log(`  ${getDevCommand(input.packageManager)}`);
+  lines.push(`  ${getDevCommand(input.packageManager)}`);
+
+  clack.outro(lines.join('\n'));
 }
 
 /** 根据包管理器返回安装依赖命令。 */
@@ -250,6 +401,57 @@ function getDevCommand(packageManager: PackageManager): string {
   }
 
   return `${packageManager} dev`;
+}
+
+/** 构造 help 文案。 */
+function getHelpMessage(): string {
+  const templates = getAllTemplates()
+    .map((template) => `  - ${colorize(template.color, template.id)}`)
+    .join('\n');
+
+  return [
+    'Usage: create-fz-stack [OPTION]... [DIRECTORY]',
+    '',
+    'Options:',
+    '  -h, --help                     show this help message',
+    '  -t, --template <name>          use a specific template',
+    '  --overwrite                    remove existing files if target directory is not empty',
+    '  -i, --immediate                install dependencies immediately',
+    '  --interactive                  force interactive mode',
+    '  --no-interactive               force non-interactive mode',
+    '',
+    'Available templates:',
+    templates
+  ].join('\n');
+}
+
+/** 打印步骤日志。 */
+function logStep(message: string): void {
+  clack.log.step(message);
+}
+
+/** 打印警告日志。 */
+function logWarn(message: string): void {
+  clack.log.warn(message);
+}
+
+/** 终端彩色输出（非 TTY 时自动降级为纯文本）。 */
+function colorize(color: DisplayColor, text: string): string {
+  if (!process.stdout.isTTY) {
+    return text;
+  }
+
+  const ansiCodeMap: Record<DisplayColor, number> = {
+    green: 32,
+    red: 31,
+    yellow: 33,
+    cyan: 36,
+    blue: 34,
+    magenta: 35,
+    dim: 2
+  };
+
+  return `\u001b[${ansiCodeMap[color]}m${text}\u001b[0m`;
 }
 
 void main();

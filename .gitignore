@@ -3,3 +3,5 @@ dist
 .DS_Store
 test-create/*
 !test-create/.gitkeep
+
+yarn.lock

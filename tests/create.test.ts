@@ -53,6 +53,22 @@ test('does not override existing dependency versions', () => {
   assert.equal(parsed.dependencies?.zustand, '^5.0.11');
 });
 
+test('syncs package name when project name is provided', () => {
+  const packageJson = JSON.stringify(
+    {
+      name: 'react-app',
+      version: '1.0.0'
+    },
+    null,
+    2
+  );
+
+  const updatedJson = applySelectedDependencies(packageJson, [], 'my-project');
+  const parsed = JSON.parse(updatedJson) as { name?: string };
+
+  assert.equal(parsed.name, 'my-project');
+});
+
 test('detects package manager from npm_config_user_agent', () => {
   assert.equal(detectPackageManager('pnpm/10.0.0 npm/? node/?'), 'pnpm');
   assert.equal(detectPackageManager('yarn/1.22.22 npm/? node/?'), 'yarn');

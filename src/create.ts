@@ -11,6 +11,7 @@ export interface CreateProjectOptions {
   templateFolder: string;
   selectedDependencies: string[];
   shouldInstallDependencies: boolean;
+  allowNonEmptyTarget?: boolean;
   packageManager?: PackageManager;
 }
 
@@ -64,11 +65,17 @@ export function detectPackageManager(
  */
 export function applySelectedDependencies(
   packageJsonContent: string,
-  selectedDependencies: string[]
+  selectedDependencies: string[],
+  packageName?: string
 ): string {
   const pkg = JSON.parse(packageJsonContent) as {
+    name?: string;
     dependencies?: Record<string, string>;
   };
+
+  if (packageName) {
+    pkg.name = packageName;
+  }
 
   if (!pkg.dependencies) {
     pkg.dependencies = {};
@@ -110,14 +117,19 @@ export function buildInstallPlan(
 /** 创建项目：复制模板 -> 生成安装计划 -> 顺序执行安装命令。 */
 export async function createProject(options: CreateProjectOptions): Promise<string> {
   const targetDir = path.resolve(process.cwd(), options.projectName);
-  await ensureTargetDirectory(targetDir);
+  await ensureTargetDirectory(targetDir, Boolean(options.allowNonEmptyTarget));
 
   const templateDir = resolveTemplatePath(options.templateFolder);
-  await cp(templateDir, targetDir, { recursive: true });
+  await cp(templateDir, targetDir, {
+    recursive: true,
+    force: !options.allowNonEmptyTarget
+  });
 
-  if (options.selectedDependencies.length > 0) {
-    await patchPackageJson(targetDir, options.selectedDependencies);
-  }
+  await patchPackageJson(
+    targetDir,
+    path.basename(targetDir),
+    options.selectedDependencies
+  );
 
   const packageManager = options.packageManager ?? detectPackageManager();
   const installPlan = buildInstallPlan(packageManager, options.shouldInstallDependencies);
@@ -132,9 +144,13 @@ export async function createProject(options: CreateProjectOptions): Promise<stri
 /**
  * 确保目标目录可安全写入：
  * - 不存在则创建
- * - 已存在但非目录或非空目录则拒绝
+ * - allowNonEmptyTarget=false 时，已存在且非空会拒绝
+ * - allowNonEmptyTarget=true 时，允许在非空目录继续
  */
-async function ensureTargetDirectory(targetDir: string): Promise<void> {
+async function ensureTargetDirectory(
+  targetDir: string,
+  allowNonEmptyTarget: boolean
+): Promise<void> {
   try {
     await access(targetDir);
   } catch {
@@ -148,7 +164,7 @@ async function ensureTargetDirectory(targetDir: string): Promise<void> {
   }
 
   const files = await readdir(targetDir);
-  if (files.length > 0) {
+  if (!allowNonEmptyTarget && files.length > 0) {
     throw new Error(`Target directory is not empty: ${targetDir}`);
   }
 }
@@ -166,10 +182,18 @@ function resolveTemplatePath(templateFolder: string): string {
 }
 
 /** 将可选依赖按固定版本写入目标项目 package.json。 */
-async function patchPackageJson(targetDir: string, selectedDependencies: string[]): Promise<void> {
+async function patchPackageJson(
+  targetDir: string,
+  packageName: string,
+  selectedDependencies: string[]
+): Promise<void> {
   const packageJsonPath = path.join(targetDir, 'package.json');
   const packageJsonContent = await readFile(packageJsonPath, 'utf8');
-  const patchedContent = applySelectedDependencies(packageJsonContent, selectedDependencies);
+  const patchedContent = applySelectedDependencies(
+    packageJsonContent,
+    selectedDependencies,
+    packageName
+  );
   await writeFile(packageJsonPath, patchedContent, 'utf8');
 }
 
