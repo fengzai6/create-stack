@@ -42,6 +42,26 @@ create-fz-stack [directory] [options]
 - `react-router-tailwind`
 - `react-router-tailwind-antd`
 
+## 模板指南
+
+如果你要新增或维护模板，按下面流程即可：
+
+1. 在 `templates/` 下新增模板目录（例如 `templates/my-template`）。
+2. 准备模板文件（如 `package.json`、`src/`、`index.html` 等）。
+3. 在 [`src/config.ts`](/Users/nacho/Documents/GitHub/AMyGitHub/create-stack/src/config.ts) 的 `CATEGORY_CATALOG` 中注册模板：
+   - `id`：CLI 识别用的模板标识（建议与目录名一致）
+   - `label`：交互列表展示名
+   - `description`：交互提示文案
+   - `folder`：模板目录名
+   - `color`：展示颜色
+4. 如果模板支持“可选依赖多选”，在模板项里配置 `optionalDependencies`（可复用并 `omit` 公共依赖集合）。
+5. 运行 `yarn test` 验证 CLI 与配置逻辑。
+
+注意事项：
+
+- 模板内 `package.json` 的 `name` 会在创建项目时自动替换为用户输入的项目名。
+- 发布包时会排除 `templates/**/yarn.lock`，避免 lock 文件进入 npm 包。
+
 交互流程：
 
 1. 输入项目名（默认 `my-project`）
@@ -66,8 +86,25 @@ yarn build
 yarn test
 yarn test-create
 yarn test-create -h
+yarn check-deps-updates
 node dist/src/cli.js
 ```
+
+## 依赖更新检查
+
+执行以下命令可检查根项目与 `templates/*/package.json` 的依赖更新：
+
+```bash
+yarn check-deps-updates
+```
+
+脚本会检查以下位置：
+
+- 根目录 `package.json`
+- `templates/*/package.json`
+- `src/config.ts` 中 `FRONTEND_OPTIONAL_DEPENDENCIES` 的 `version`
+
+当检测到可更新依赖时，会先汇总展示，再一次性询问是否全部写回（`y/N`）。
 
 ## 发布检查清单
 

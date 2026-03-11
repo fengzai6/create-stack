@@ -16,6 +16,7 @@
     "build": "tsc -p tsconfig.json",
     "test": "yarn build && node --test dist/tests/*.test.js",
     "test-create": "yarn build && node scripts/test-create.js",
+    "check-deps-updates": "node scripts/check-deps-updates.js",
     "release": "yarn build && npm publish",
     "prepack": "yarn build"
   },
