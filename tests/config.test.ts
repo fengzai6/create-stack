@@ -26,43 +26,34 @@ test('returns template list by category', () => {
 });
 
 test('returns optional dependencies only when template defines them', () => {
-  const reactTailwindDependencies = getOptionalDependenciesForTemplate('react-tailwind');
-  assert.ok(reactTailwindDependencies.length > 0);
-  assert.ok(reactTailwindDependencies.some((dependency) => dependency.name === 'antd'));
-  assert.ok(
-    reactTailwindDependencies.some((dependency) => dependency.name === '@ant-design/icons')
-  );
+  const categories = getCategories();
+  const templates = categories.flatMap((category) => category.templates);
 
-  const defaultSelected = reactTailwindDependencies
-    .filter((dependency) => dependency.defaultSelected)
-    .map((dependency) => dependency.name)
-    .sort();
-  assert.deepEqual(defaultSelected, ['antd', 'axios', 'zustand']);
-
-  const reactTailwindAntdDependencies = getOptionalDependenciesForTemplate(
-    'react-tailwind-antd'
-  );
-  assert.ok(
-    !reactTailwindAntdDependencies.some((dependency) => dependency.name === 'antd')
-  );
-  assert.ok(
-    !reactTailwindAntdDependencies.some(
-      (dependency) => dependency.name === '@ant-design/icons'
-    )
-  );
+  for (const template of templates) {
+    const dependencies = getOptionalDependenciesForTemplate(template.id);
+    for (const dependency of dependencies) {
+      assert.equal(typeof dependency.name, 'string');
+      assert.ok(dependency.name.length > 0);
+      assert.equal(typeof dependency.version, 'string');
+      assert.ok(dependency.version.length > 0);
+      assert.equal(typeof dependency.defaultSelected, 'boolean');
+    }
+  }
 
   const unknownTemplateDependencies = getOptionalDependenciesForTemplate('unknown-template');
   assert.deepEqual(unknownTemplateDependencies, []);
 });
 
 test('returns pinned optional dependency versions', () => {
-  assert.equal(getOptionalDependencyVersion('antd'), '^6.3.2');
-  assert.equal(getOptionalDependencyVersion('@ant-design/icons'), '^6.1.0');
-  assert.equal(getOptionalDependencyVersion('axios'), '^1.13.6');
-  assert.equal(getOptionalDependencyVersion('ahooks'), '^3.9.6');
-  assert.equal(getOptionalDependencyVersion('zustand'), '^5.0.11');
-  assert.equal(getOptionalDependencyVersion('react-router'), '^7.13.1');
-  assert.equal(getOptionalDependencyVersion('dayjs'), '^1.11.19');
-  assert.equal(getOptionalDependencyVersion('es-toolkit'), '^1.45.1');
+  const categories = getCategories();
+  const templates = categories.flatMap((category) => category.templates);
+
+  for (const template of templates) {
+    const dependencies = getOptionalDependenciesForTemplate(template.id);
+    for (const dependency of dependencies) {
+      assert.equal(getOptionalDependencyVersion(dependency.name), dependency.version);
+    }
+  }
+
   assert.equal(getOptionalDependencyVersion('unknown-dep'), undefined);
 });

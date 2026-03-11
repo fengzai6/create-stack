@@ -4,4 +4,6 @@ dist
 test-create/*
 !test-create/.gitkeep
 
+.npm-cache
+
 yarn.lock
