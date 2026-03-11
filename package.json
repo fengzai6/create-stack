@@ -1,0 +1,32 @@
+{
+  "name": "@fengzai/create-stack",
+  "version": "0.1.0",
+  "description": "A CLI to bootstrap projects from built-in templates.",
+  "license": "MIT",
+  "private": false,
+  "bin": {
+    "create-stack": "dist/src/cli.js"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "yarn build && node --test dist/tests/*.test.js",
+    "test-create": "yarn build && node scripts/test-create.js",
+    "prepack": "yarn build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "@types/prompts": "^2.4.9",
+    "typescript": "^5.8.3"
+  }
+}
