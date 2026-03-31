@@ -76,7 +76,7 @@ jobs:
           git checkout -b "$BRANCH"
           git add -A -- ':!templates/*/node_modules'
           git commit -m "sync: update templates from create-vite v${VITE_VERSION}"
-          git push origin "$BRANCH"
+          git push origin "$BRANCH" --force
 
           gh pr create \
             --title "sync: update templates from create-vite v${VITE_VERSION}" \
