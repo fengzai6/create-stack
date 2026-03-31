@@ -13,6 +13,7 @@ export type DisplayColor = (typeof DisplayColor)[keyof typeof DisplayColor];
 export interface OptionalDependencyConfig {
   version: string;
   defaultSelected: boolean;
+  description?: string;
 }
 
 /** 可选依赖映射，key 为依赖名。 */
@@ -41,4 +42,5 @@ export interface OptionalDependencyDefinition {
   name: string;
   version: string;
   defaultSelected: boolean;
+  description?: string;
 }
