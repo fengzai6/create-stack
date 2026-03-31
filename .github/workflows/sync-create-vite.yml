@@ -1,0 +1,90 @@
+name: Sync with create-vite
+
+on:
+  schedule:
+    - cron: '0 9 * * 1' # 每周一 09:00 UTC
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Download latest create-vite templates
+        run: |
+          mkdir -p /tmp/create-vite
+          cd /tmp/create-vite
+          npm pack create-vite
+          tar -xzf create-vite-*.tgz
+          echo "=== create-vite version ==="
+          cat package/package.json | grep '"version"'
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: AI 分析 diff 并更新模板
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+        run: |
+          VITE_VERSION=$(cat /tmp/create-vite/package/package.json | node -e "process.stdin.resume();let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).version))")
+          echo "create-vite version: $VITE_VERSION"
+
+          codex \
+            --approval-mode full-auto \
+            --quiet \
+            "你是一个专业的前端工程师。
+            请对比 /tmp/create-vite/package/template-react-ts 与本项目 templates/ 目录下各模板的配置文件差异，
+            重点关注以下文件的变更：
+            - vite.config.ts
+            - tsconfig.json / tsconfig.app.json / tsconfig.node.json
+            - eslint.config.js
+            - index.html
+            - package.json 中的 devDependencies（vite、typescript、eslint 相关包版本）
+            将 create-vite 上游的合理更新同步到本项目的 templates/ 下对应文件中。
+            注意：
+            1. 保留本项目已有的自定义内容（如 tailwind、antd、react-router 相关配置）
+            2. 只修改文件，不要执行任何 git 命令
+            3. 不要修改 templates/ 下的 node_modules 目录"
+
+      - name: 检查是否有变更
+        id: check
+        run: |
+          git diff --quiet && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: 创建 PR
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VITE_VERSION=$(cat /tmp/create-vite/package/package.json | node -e "process.stdin.resume();let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).version))")
+          BRANCH="sync/create-vite-${VITE_VERSION}-$(date +%Y%m%d)"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A -- ':!templates/*/node_modules'
+          git commit -m "sync: update templates from create-vite v${VITE_VERSION}"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "sync: update templates from create-vite v${VITE_VERSION}" \
+            --body "## 自动同步 create-vite 模板变更
+
+          **create-vite 版本**: v${VITE_VERSION}
+          **触发时间**: $(date -u '+%Y-%m-%d %H:%M UTC')
+
+          由 AI (Codex) 自动分析上游变更并同步到本项目模板。
+          请 review 后确认合并。" \
+            --base main
