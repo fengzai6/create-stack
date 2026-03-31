@@ -56,7 +56,8 @@ jobs:
             注意：
             1. 保留本项目已有的自定义内容（如 tailwind、antd、react-router 相关配置）
             2. 只修改文件，不要执行任何 git 命令
-            3. 不要修改 templates/ 下的 node_modules 目录"
+            3. 不要修改 templates/ 下的 node_modules 目录
+            4. 完成后将变更摘要写入 /tmp/sync-summary.md，格式为 markdown，列出每个文件的具体变更内容"
 
       - name: 检查是否有变更
         id: check
@@ -78,13 +79,15 @@ jobs:
           git commit -m "sync: update templates from create-vite v${VITE_VERSION}"
           git push origin "$BRANCH" --force
 
+          SUMMARY=$(cat /tmp/sync-summary.md 2>/dev/null || echo '无变更摘要')
+
+          PR_BODY=$(printf '## 自动同步 create-vite 模板变更\n\n**create-vite 版本**: v%s\n**触发时间**: %s\n\n## AI 变更摘要\n\n%s' \
+            "${VITE_VERSION}" \
+            "$(date -u '+%Y-%m-%d %H:%M UTC')" \
+            "${SUMMARY}")
+
           gh pr create \
             --title "sync: update templates from create-vite v${VITE_VERSION}" \
-            --body "## 自动同步 create-vite 模板变更
-
-          **create-vite 版本**: v${VITE_VERSION}
-          **触发时间**: $(date -u '+%Y-%m-%d %H:%M UTC')
-
-          由 AI (Codex) 自动分析上游变更并同步到本项目模板。
-          请 review 后确认合并。" \
+            --body "${PR_BODY}" \
+            --reviewer fengzai6 \
             --base main

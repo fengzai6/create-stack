@@ -1,0 +1,68 @@
+name: Check Build
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'templates/**'
+      - 'tsconfig*.json'
+      - 'package.json'
+
+jobs:
+  build-root:
+    name: Build root
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - run: npm ci
+      - run: npm run build --if-present
+      - run: npm test
+
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      templates: ${{ steps.list.outputs.templates }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: List templates
+        id: list
+        run: |
+          templates=$(ls -d templates/*/ | xargs -I{} basename {} | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "templates=$templates" >> $GITHUB_OUTPUT
+
+  build-templates:
+    needs: discover
+    name: Build ${{ matrix.template }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        template: ${{ fromJson(needs.discover.outputs.templates) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        working-directory: templates/${{ matrix.template }}
+        run: npm install
+
+      - name: Build
+        working-directory: templates/${{ matrix.template }}
+        run: npm run build
