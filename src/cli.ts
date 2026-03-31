@@ -327,9 +327,10 @@ async function askOptionalDependencies(
   const result = await clack.multiselect({
     message: 'Select optional dependencies (Space to toggle, Enter to submit)',
     options: dependencies.map((dependency) => ({
-      label: `${dependency.name} (${dependency.version})`,
+      label: dependency.description
+        ? `${dependency.name} (${dependency.version}) — ${dependency.description}`
+        : `${dependency.name} (${dependency.version})`,
       value: dependency.name,
-      hint: dependency.defaultSelected ? 'default selected' : undefined
     })),
     initialValues: dependencies
       .filter((dependency) => dependency.defaultSelected)

@@ -9,14 +9,51 @@ import { omit } from "./utils";
 
 // 前端类模板可选依赖配置（含默认勾选策略），以依赖名为 key 便于按模板裁剪。
 const FRONTEND_OPTIONAL_DEPENDENCIES = {
-  axios: { version: "^1.13.6", defaultSelected: true },
-  ahooks: { version: "^3.9.6", defaultSelected: true },
-  zustand: { version: "^5.0.11", defaultSelected: true },
-  dayjs: { version: "^1.11.19", defaultSelected: true },
-  "es-toolkit": { version: "^1.45.1", defaultSelected: true },
-  antd: { version: "^6.3.2", defaultSelected: false },
-  "@ant-design/icons": { version: "^6.1.0", defaultSelected: false },
-  "react-router": { version: "^7.13.1", defaultSelected: false },
+  axios: {
+    version: "^1.14.0",
+    defaultSelected: true,
+    description: "基于 Promise 的 HTTP 请求库",
+  },
+  ahooks: {
+    version: "^3.9.7",
+    defaultSelected: true,
+    description: "生产级 React Hooks 工具库",
+  },
+  zustand: {
+    version: "^5.0.12",
+    defaultSelected: true,
+    description: "轻量级状态管理",
+  },
+  dayjs: {
+    version: "^1.11.20",
+    defaultSelected: true,
+    description: "轻量日期时间处理库",
+  },
+  "es-toolkit": {
+    version: "^1.45.1",
+    defaultSelected: true,
+    description: "现代 JavaScript 工具函数库",
+  },
+  antd: {
+    version: "^6.3.5",
+    defaultSelected: false,
+    description: "Ant Design 组件库",
+  },
+  "@ant-design/icons": {
+    version: "^6.1.1",
+    defaultSelected: false,
+    description: "Ant Design 图标库",
+  },
+  "react-router": {
+    version: "^7.13.2",
+    defaultSelected: false,
+    description: "React 声明式路由",
+  },
+  "@chenglou/pretext": {
+    version: "^0.0.3",
+    defaultSelected: false,
+    description: "文本预处理库",
+  },
 } satisfies OptionalDependencyMap;
 
 // 分类 -> 模板 的静态目录配置，CLI 根据此配置渲染交互选项。
@@ -115,6 +152,7 @@ export function getOptionalDependenciesForTemplate(
       name,
       version: dependencyConfig.version,
       defaultSelected: dependencyConfig.defaultSelected,
+      description: dependencyConfig.description,
     })
   );
 }

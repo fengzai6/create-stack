@@ -279,8 +279,34 @@ function findPackageJsonPaths(rootDir) {
   return packageJsonPaths;
 }
 
-async function collectUpdateTargets(rootDir) {
+async function checkConfigTarget(rootDir) {
+  const configPath = path.join(rootDir, CONFIG_RELATIVE_PATH);
+  if (!fs.existsSync(configPath)) return null;
+
+  console.log(`Checking ${CONFIG_RELATIVE_PATH}...`);
+  const configContent = await fs.promises.readFile(configPath, 'utf8');
+  const configRanges = parseConfigDependencyRanges(configContent);
+  const outdatedMap = getOutdatedMapForRanges(configRanges);
+  const updates = planConfigUpdates(configContent, outdatedMap);
+
+  if (updates.length > 0) {
+    console.log(`- ${CONFIG_RELATIVE_PATH}: found ${updates.length} update(s)`);
+    return { kind: 'config', absolutePath: configPath, relativePath: CONFIG_RELATIVE_PATH, updates };
+  }
+
+  console.log(`- ${CONFIG_RELATIVE_PATH}: no updates`);
+  return null;
+}
+
+async function collectUpdateTargets(rootDir, configOnly = false) {
   const targets = [];
+
+  if (configOnly) {
+    const target = await checkConfigTarget(rootDir);
+    if (target) targets.push(target);
+    return targets;
+  }
+
   const packageJsonPaths = findPackageJsonPaths(rootDir);
 
   for (const packageJsonPath of packageJsonPaths) {
@@ -305,26 +331,8 @@ async function collectUpdateTargets(rootDir) {
     });
   }
 
-  const configPath = path.join(rootDir, CONFIG_RELATIVE_PATH);
-  if (fs.existsSync(configPath)) {
-    console.log(`Checking ${CONFIG_RELATIVE_PATH}...`);
-    const configContent = await fs.promises.readFile(configPath, 'utf8');
-    const configRanges = parseConfigDependencyRanges(configContent);
-    const outdatedMap = getOutdatedMapForRanges(configRanges);
-    const updates = planConfigUpdates(configContent, outdatedMap);
-
-    if (updates.length > 0) {
-      console.log(`- ${CONFIG_RELATIVE_PATH}: found ${updates.length} update(s)`);
-      targets.push({
-        kind: 'config',
-        absolutePath: configPath,
-        relativePath: CONFIG_RELATIVE_PATH,
-        updates
-      });
-    } else {
-      console.log(`- ${CONFIG_RELATIVE_PATH}: no updates`);
-    }
-  }
+  const configTarget = await checkConfigTarget(rootDir);
+  if (configTarget) targets.push(configTarget);
 
   return targets;
 }
@@ -350,8 +358,9 @@ async function confirmApplyAll(rl, totalUpdateCount, fileCount) {
 
 async function run() {
   const rootDir = process.cwd();
+  const configOnly = process.argv.includes('--config-only');
   console.log('Checking dependency updates...');
-  const targets = await collectUpdateTargets(rootDir);
+  const targets = await collectUpdateTargets(rootDir, configOnly);
 
   if (targets.length === 0) {
     console.log('No dependency updates found.');
