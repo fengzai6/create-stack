@@ -67,7 +67,7 @@ jobs:
       - name: 创建 PR
         if: steps.check.outputs.changed == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           VITE_VERSION=$(cat /tmp/create-vite/package/package.json | node -e "process.stdin.resume();let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).version))")
           BRANCH="sync/create-vite-${VITE_VERSION}-$(date +%Y%m%d)"
