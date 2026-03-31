@@ -5,10 +5,10 @@ on:
     branches:
       - main
     paths:
-      - 'src/**'
-      - 'templates/**'
-      - 'tsconfig*.json'
-      - 'package.json'
+      - "src/**"
+      - "templates/**"
+      - "tsconfig*.json"
+      - "package.json"
 
 jobs:
   build-root:
@@ -21,11 +21,18 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: "24"
+      - name: Enable corepack
+        run: corepack enable
 
-      - run: npm ci
-      - run: npm run build --if-present
-      - run: npm test
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn build
+
+      - name: Test
+        run: yarn test
 
   discover:
     runs-on: ubuntu-latest
@@ -57,7 +64,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: "24"
 
       - name: Install dependencies
         working-directory: templates/${{ matrix.template }}

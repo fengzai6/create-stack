@@ -7,3 +7,4 @@ test-create/*
 .npm-cache
 
 yarn.lock
+!/yarn.lock
