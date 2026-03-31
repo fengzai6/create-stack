@@ -45,7 +45,6 @@ jobs:
 
           codex exec \
             --dangerously-bypass-approvals-and-sandbox \
-            --disable responses_websocket \
             "你是一个专业的前端工程师。
             请对比 /tmp/create-vite/package/template-react-ts 与本项目 templates/ 目录下各模板的配置文件差异，
             重点关注以下文件的变更：
