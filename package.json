@@ -4,6 +4,10 @@
   "description": "A CLI to bootstrap projects from built-in templates.",
   "license": "MIT",
   "private": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fengzai6/create-stack"
+  },
   "bin": {
     "create-fz-stack": "dist/src/cli.js"
   },
