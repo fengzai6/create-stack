@@ -36,13 +36,16 @@ jobs:
       - name: AI 分析 diff 并更新模板
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
         run: |
+          mkdir -p ~/.codex
+          echo "openai_base_url = \"${{ secrets.OPENAI_BASE_URL }}\"" > ~/.codex/config.toml
+
           VITE_VERSION=$(cat /tmp/create-vite/package/package.json | node -e "process.stdin.resume();let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).version))")
           echo "create-vite version: $VITE_VERSION"
 
           codex exec \
             --dangerously-bypass-approvals-and-sandbox \
+            --disable responses_websocket \
             "你是一个专业的前端工程师。
             请对比 /tmp/create-vite/package/template-react-ts 与本项目 templates/ 目录下各模板的配置文件差异，
             重点关注以下文件的变更：
