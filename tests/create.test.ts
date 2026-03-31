@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { applySelectedDependencies, buildInstallPlan, detectPackageManager } from '../src/create';
+import { getOptionalDependencyVersion } from '../src/config';
 
 test('builds install step when user chooses immediate install', () => {
   const plan = buildInstallPlan('yarn', true);
@@ -30,8 +31,8 @@ test('adds selected optional dependencies with pinned versions', () => {
   const parsed = JSON.parse(updatedJson) as { dependencies?: Record<string, string> };
 
   assert.equal(parsed.dependencies?.react, '^19.0.0');
-  assert.equal(parsed.dependencies?.antd, '^6.3.2');
-  assert.equal(parsed.dependencies?.axios, '^1.13.6');
+  assert.equal(parsed.dependencies?.antd, getOptionalDependencyVersion('antd'));
+  assert.equal(parsed.dependencies?.axios, getOptionalDependencyVersion('axios'));
 });
 
 test('does not override existing dependency versions', () => {
@@ -50,7 +51,7 @@ test('does not override existing dependency versions', () => {
   const parsed = JSON.parse(updatedJson) as { dependencies?: Record<string, string> };
 
   assert.equal(parsed.dependencies?.axios, '^1.8.0');
-  assert.equal(parsed.dependencies?.zustand, '^5.0.11');
+  assert.equal(parsed.dependencies?.zustand, getOptionalDependencyVersion('zustand'));
 });
 
 test('syncs package name when project name is provided', () => {
