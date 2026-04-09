@@ -45,19 +45,22 @@ jobs:
           codex exec \
             --dangerously-bypass-approvals-and-sandbox \
             "你是一个专业的前端工程师。
-            请对比 /tmp/create-vite/package/template-react-ts 与本项目 templates/ 目录下各模板的配置文件差异，
-            重点关注以下文件的变更：
-            - vite.config.ts
-            - tsconfig.json / tsconfig.app.json / tsconfig.node.json
-            - eslint.config.js
-            - index.html
-            - package.json 中的 devDependencies（vite、typescript、eslint 相关包版本）
-            将 create-vite 上游的合理更新同步到本项目的 templates/ 下对应文件中。
-            注意：
-            1. 保留本项目已有的自定义内容（如 tailwind、antd、react-router 相关配置）
-            2. 只修改文件，不要执行任何 git 命令
-            3. 不要修改 templates/ 下的 node_modules 目录
-            4. 完成后将变更摘要写入 /tmp/sync-summary.md，格式为 markdown，列出每个文件的具体变更内容"
+            第一阶段：同步更新
+            1. 请对比 /tmp/create-vite/package/template-react-ts 与本项目 templates/ 目录下各模板的配置文件差异。
+            2. 重点关注：vite.config.ts, tsconfig.json, tsconfig.app.json, tsconfig.node.json, eslint.config.js, index.html, 以及 package.json 中的 devDependencies（vite、typescript、eslint 相关）。
+            3. 将 create-vite 上游的合理更新同步到本项目的 templates/ 下对应文件中。注意保留本项目已有的自定义内容（如 tailwind、antd、react-router 相关配置）。
+            4. 不要执行任何 git 命令，不要修改 templates/ 下的 node_modules 目录。
+
+            第二阶段：Build 检查与修复
+            1. 如果完成了同步修改，请从 templates/ 目录下随机选择一个受影响的模板（优先选择复杂的模板，如 react-router-tailwind-antd）。
+            2. 在该模板目录下尝试执行 build 检查：
+               - 执行 npm install (使用 --no-package-lock 以免产生多余 diff)。
+               - 执行 npm run build 进行构建。
+            3. 如果构建失败：
+               - 仔细分析错误日志。
+               - 修改本项目中相关文件（如 tsconfig 或代码）以修复 build 失败的问题。
+               - 再次执行 npm run build 验证修复效果。
+            4. 完成后，将同步变更和 Build 检查的结果（包括选择的模板、修复过程等）详细记录并在 /tmp/sync-summary.md 中以 markdown 格式输出。"
 
       - name: 检查是否有变更
         id: check
