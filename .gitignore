@@ -8,3 +8,5 @@ test-create/*
 
 yarn.lock
 !/yarn.lock
+
+create-fz-stack-*.tgz
