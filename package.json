@@ -1,6 +1,6 @@
 {
   "name": "create-fz-stack",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "A CLI to bootstrap projects from built-in templates.",
   "license": "MIT",
   "private": false,
@@ -12,7 +12,7 @@
     "create-fz-stack": "dist/src/cli.js"
   },
   "files": [
-    "dist",
+    "dist/src",
     "templates",
     "README.md"
   ],

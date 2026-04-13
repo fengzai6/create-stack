@@ -1,10 +1,24 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { access, cp, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import {
+  access,
+  cp,
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  stat,
+  unlink,
+  writeFile
+} from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
 import { getOptionalDependencyVersion } from './config';
+
+const TEMPLATE_RESTORED_FILE_NAMES = {
+  _gitignore: '.gitignore'
+} as const;
 
 export interface CreateProjectOptions {
   projectName: string;
@@ -130,6 +144,7 @@ export async function createProject(options: CreateProjectOptions): Promise<stri
     path.basename(targetDir),
     options.selectedDependencies
   );
+  await restoreTemplateIgnoredFiles(targetDir);
 
   const packageManager = options.packageManager ?? detectPackageManager();
   const installPlan = buildInstallPlan(packageManager, options.shouldInstallDependencies);
@@ -195,6 +210,39 @@ async function patchPackageJson(
     packageName
   );
   await writeFile(packageJsonPath, patchedContent, 'utf8');
+}
+
+/**
+ * npm publish 会丢弃模板中的 .gitignore，这里将占位文件名还原回隐藏文件。
+ */
+async function restoreTemplateIgnoredFiles(targetDir: string): Promise<void> {
+  const entries = await readdir(targetDir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const entryPath = path.join(targetDir, entry.name);
+
+    if (entry.isDirectory()) {
+      await restoreTemplateIgnoredFiles(entryPath);
+      continue;
+    }
+
+    const restoredFileName =
+      TEMPLATE_RESTORED_FILE_NAMES[
+        entry.name as keyof typeof TEMPLATE_RESTORED_FILE_NAMES
+      ];
+
+    if (!restoredFileName) {
+      continue;
+    }
+
+    const restoredFilePath = path.join(targetDir, restoredFileName);
+    if (existsSync(restoredFilePath)) {
+      await unlink(entryPath);
+      continue;
+    }
+
+    await rename(entryPath, restoredFilePath);
+  }
 }
 
 /** 执行子进程命令并透传 stdio，失败时返回可读错误。 */
