@@ -66,10 +66,8 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Install dependencies
-        working-directory: templates/${{ matrix.template }}
-        run: npm install
+      - name: Enable corepack
+        run: corepack enable
 
-      - name: Build
-        working-directory: templates/${{ matrix.template }}
-        run: npm run build
+      - name: Check template
+        run: node scripts/check-templates.js ${{ matrix.template }}
