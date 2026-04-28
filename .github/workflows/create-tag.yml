@@ -51,6 +51,8 @@ jobs:
           git push origin HEAD
 
       - name: Create and push tag
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           if [ -n "${{ inputs.message }}" ]; then
             git tag -a "${{ inputs.tag }}" -m "${{ inputs.message }}"
