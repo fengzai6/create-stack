@@ -36,7 +36,10 @@ jobs:
       - name: AI 分析 diff 并更新模板
         run: |
           mkdir -p ~/.codex
-          echo "openai_base_url = \"${{ secrets.OPENAI_BASE_URL }}\"" > ~/.codex/config.toml
+          cat > ~/.codex/config.toml <<EOF
+          openai_base_url = "${{ secrets.OPENAI_BASE_URL }}"
+          model = "gpt-5.4"
+          EOF
           echo '{"OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY }}"}' > ~/.codex/auth.json
 
           VITE_VERSION=$(cat /tmp/create-vite/package/package.json | node -e "process.stdin.resume();let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).version))")
