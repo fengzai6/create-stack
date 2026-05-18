@@ -106,6 +106,20 @@ const CATEGORY_CATALOG: CategoryDefinition[] = [
       },
     ],
   },
+  {
+    id: "monorepo",
+    label: "Monorepo",
+    color: DisplayColor.GREEN,
+    templates: [
+      {
+        id: "monorepo-yarn",
+        label: "Monorepo (Yarn)",
+        description: "Yarn workspaces monorepo starter",
+        folder: "monorepo-yarn",
+        color: DisplayColor.MAGENTA,
+      },
+    ],
+  },
 ];
 
 const OPTIONAL_DEPENDENCY_VERSION_MAP: Record<string, string> =

@@ -149,6 +149,8 @@ export async function createProject(options: CreateProjectOptions): Promise<stri
     options.selectedDependencies
   );
   await restoreTemplateIgnoredFiles(targetDir);
+  await removeGitKeepFiles(targetDir);
+  await patchIndexHtml(targetDir, path.basename(targetDir));
 
   const packageManager = options.packageManager ?? detectPackageManager();
   const installPlan = buildInstallPlan(packageManager, options.shouldInstallDependencies);
@@ -214,6 +216,39 @@ async function patchPackageJson(
     packageName
   );
   await writeFile(packageJsonPath, patchedContent, 'utf8');
+}
+
+/** 递归删除模板中的 .gitkeep 占位文件。 */
+async function removeGitKeepFiles(targetDir: string): Promise<void> {
+  const entries = await readdir(targetDir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const entryPath = path.join(targetDir, entry.name);
+
+    if (entry.isDirectory()) {
+      await removeGitKeepFiles(entryPath);
+      continue;
+    }
+
+    if (entry.name === '.gitkeep') {
+      await unlink(entryPath);
+    }
+  }
+}
+
+/** 将 index.html 中的标题替换为项目名。 */
+async function patchIndexHtml(targetDir: string, projectName: string): Promise<void> {
+  const indexHtmlPath = path.join(targetDir, 'index.html');
+
+  try {
+    await access(indexHtmlPath);
+  } catch {
+    return;
+  }
+
+  const content = await readFile(indexHtmlPath, 'utf8');
+  const patchedContent = content.replace(/<title>.*?<\/title>/, `<title>${projectName}</title>`);
+  await writeFile(indexHtmlPath, patchedContent, 'utf8');
 }
 
 /**
