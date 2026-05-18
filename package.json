@@ -27,7 +27,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@clack/prompts": "^1.1.0"
+    "@clack/prompts": "^1.4.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
