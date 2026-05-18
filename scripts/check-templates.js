@@ -1,11 +1,15 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+import fs from 'node:fs';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const TEMPLATE_ROOT = path.resolve(__dirname, '..', 'templates');
 const YARN_COMMAND = process.platform === 'win32' ? 'yarn.cmd' : 'yarn';
 
-function getTemplateDirs() {
+export function getTemplateDirs() {
   return fs
     .readdirSync(TEMPLATE_ROOT, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -17,13 +21,13 @@ function getTemplateDirs() {
     .sort();
 }
 
-function getCheckCommands() {
+export function getCheckCommands() {
   const installArgs = process.env.CI ? ['install', '--frozen-lockfile'] : ['install'];
 
   return [installArgs, ['lint'], ['build']];
 }
 
-function resolveTemplateDirs(selectedTemplateDirs) {
+export function resolveTemplateDirs(selectedTemplateDirs) {
   const allTemplateDirs = getTemplateDirs();
 
   if (selectedTemplateDirs.length === 0) {
@@ -42,7 +46,7 @@ function resolveTemplateDirs(selectedTemplateDirs) {
   return selectedTemplateDirs;
 }
 
-function runTemplateCommand(templateDir, commandArgs) {
+export function runTemplateCommand(templateDir, commandArgs) {
   const cwd = path.join(TEMPLATE_ROOT, templateDir);
   const result = spawnSync(YARN_COMMAND, commandArgs, {
     cwd,
@@ -81,13 +85,7 @@ function run() {
   }
 }
 
-if (require.main === module) {
+const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+if (isMainModule) {
   run();
 }
-
-module.exports = {
-  getTemplateDirs,
-  getCheckCommands,
-  resolveTemplateDirs,
-  runTemplateCommand
-};

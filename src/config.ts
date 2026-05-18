@@ -4,8 +4,8 @@ import {
   type OptionalDependencyDefinition,
   type OptionalDependencyMap,
   type TemplateDefinition,
-} from "./types";
-import { omit } from "./utils";
+} from "./types.js";
+import { omit } from "./utils.js";
 
 // 前端类模板可选依赖配置（含默认勾选策略），以依赖名为 key 便于按模板裁剪。
 const FRONTEND_OPTIONAL_DEPENDENCIES = {

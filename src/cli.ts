@@ -9,18 +9,18 @@ import {
   getCategories,
   getOptionalDependenciesForTemplate,
   getTemplatesByCategory
-} from './config';
+} from './config.js';
 import {
   createProject,
   detectPackageManager,
   type PackageManager
-} from './create';
-import { formatTargetDir, isTrulyEmptyDirectory, parseCliArgs } from './cli-options';
+} from './create.js';
+import { formatTargetDir, isTrulyEmptyDirectory, parseCliArgs } from './cli-options.js';
 import type {
   DisplayColor,
   OptionalDependencyDefinition,
   TemplateDefinition,
-} from './types';
+} from './types.js';
 
 const CANCELLED_MESSAGE = 'PROMPT_CANCELLED';
 const BACK_TO_CATEGORY = '__back_to_category__' as const;

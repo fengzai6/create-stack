@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { omit } from '../src/utils';
+import { omit } from '../src/utils.js';
 
 test('omit removes specified keys and keeps the rest', () => {
   const source = {

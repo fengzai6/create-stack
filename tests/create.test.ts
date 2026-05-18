@@ -3,14 +3,18 @@ import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 import {
   applySelectedDependencies,
   buildInstallPlan,
   createProject,
   detectPackageManager
-} from '../src/create';
-import { getOptionalDependencyVersion } from '../src/config';
+} from '../src/create.js';
+import { getOptionalDependencyVersion } from '../src/config.js';
 
 test('builds install step when user chooses immediate install', () => {
   const plan = buildInstallPlan('yarn', true);

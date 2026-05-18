@@ -2,12 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
-type ScriptModule = {
-  normalizeForwardedArgs: (rawArgs: string[]) => string[];
-};
-
 const scriptPath = path.resolve(process.cwd(), 'scripts', 'test-create.js');
-const { normalizeForwardedArgs } = require(scriptPath) as ScriptModule;
+const scriptModule = await import(scriptPath);
+const { normalizeForwardedArgs } = scriptModule as typeof import('../scripts/test-create.js');
 
 test('normalizes forwarded args by removing leading --', () => {
   assert.deepEqual(normalizeForwardedArgs(['--', '-h']), ['-h']);

@@ -6,7 +6,7 @@ import {
   getTemplatesByCategory,
   getOptionalDependenciesForTemplate,
   getOptionalDependencyVersion
-} from '../src/config';
+} from '../src/config.js';
 
 test('returns expected category ids in display order', () => {
   const categories = getCategories();
