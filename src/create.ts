@@ -16,7 +16,6 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { getOptionalDependencyVersion } from './config.js';
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -31,6 +30,7 @@ export interface CreateProjectOptions {
   shouldInstallDependencies: boolean;
   allowNonEmptyTarget?: boolean;
   packageManager?: PackageManager;
+  dockerFiles?: { dockerfile: string; configs?: { src: string; dest: string }[] };
 }
 
 export type PackageManager = 'npm' | 'yarn' | 'pnpm';
@@ -151,6 +151,10 @@ export async function createProject(options: CreateProjectOptions): Promise<stri
   await restoreTemplateIgnoredFiles(targetDir);
   await removeGitKeepFiles(targetDir);
   await patchIndexHtml(targetDir, path.basename(targetDir));
+
+  if (options.dockerFiles) {
+    await copyDockerFiles(targetDir, options.dockerFiles);
+  }
 
   const packageManager = options.packageManager ?? detectPackageManager();
   const installPlan = buildInstallPlan(packageManager, options.shouldInstallDependencies);
@@ -302,4 +306,22 @@ function runCommand(command: string, args: string[], cwd: string): Promise<void>
       reject(new Error(`Command failed: ${command} ${args.join(' ')}`));
     });
   });
+}
+
+/** 复制 Docker 相关文件到目标目录。 */
+async function copyDockerFiles(
+  targetDir: string,
+  config: NonNullable<CreateProjectOptions['dockerFiles']>
+): Promise<void> {
+  const sourceDir = path.resolve(__dirname, '../../dockerfiles');
+
+  await cp(path.join(sourceDir, config.dockerfile), path.join(targetDir, 'Dockerfile'));
+
+  if (config.configs) {
+    for (const { src, dest } of config.configs) {
+      if (src !== dest) {
+        await cp(path.join(sourceDir, src), path.join(targetDir, dest));
+      }
+    }
+  }
 }

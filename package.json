@@ -12,6 +12,7 @@
   "files": [
     "dist/src",
     "templates",
+    "dockerfiles",
     "README.md"
   ],
   "scripts": {

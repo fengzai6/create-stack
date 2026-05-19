@@ -1,6 +1,7 @@
 import {
   DisplayColor,
   type CategoryDefinition,
+  type DockerFilesConfig,
   type OptionalDependencyDefinition,
   type OptionalDependencyMap,
   type TemplateDefinition,
@@ -56,6 +57,15 @@ const FRONTEND_OPTIONAL_DEPENDENCIES = {
   },
 } satisfies OptionalDependencyMap;
 
+const FRONTEND_DOCKER_FILES: DockerFilesConfig = {
+  dockerfile: {
+    npm: "Dockerfile.npm",
+    yarn: "Dockerfile.yarn",
+    pnpm: "Dockerfile.pnpm",
+  },
+  configs: [{ src: "nginx.spa.conf", dest: "nginx.conf" }],
+};
+
 // 分类 -> 模板 的静态目录配置，CLI 根据此配置渲染交互选项。
 const CATEGORY_CATALOG: CategoryDefinition[] = [
   {
@@ -74,6 +84,7 @@ const CATEGORY_CATALOG: CategoryDefinition[] = [
           "@ant-design/icons",
           "react-router",
         ] as const),
+        dockerFiles: FRONTEND_DOCKER_FILES,
       },
       {
         id: "react-router-tailwind",
@@ -84,6 +95,7 @@ const CATEGORY_CATALOG: CategoryDefinition[] = [
         optionalDependencies: omit(FRONTEND_OPTIONAL_DEPENDENCIES, [
           "react-router",
         ] as const),
+        dockerFiles: FRONTEND_DOCKER_FILES,
       },
       {
         id: "react-tailwind-antd",
@@ -95,6 +107,7 @@ const CATEGORY_CATALOG: CategoryDefinition[] = [
           "antd",
           "@ant-design/icons",
         ] as const),
+        dockerFiles: FRONTEND_DOCKER_FILES,
       },
       {
         id: "react-tailwind",
@@ -103,6 +116,7 @@ const CATEGORY_CATALOG: CategoryDefinition[] = [
         folder: "react-tailwind",
         color: DisplayColor.BLUE,
         optionalDependencies: FRONTEND_OPTIONAL_DEPENDENCIES,
+        dockerFiles: FRONTEND_DOCKER_FILES,
       },
     ],
   },
@@ -176,4 +190,14 @@ export function getOptionalDependencyVersion(
   dependencyName: string
 ): string | undefined {
   return OPTIONAL_DEPENDENCY_VERSION_MAP[dependencyName];
+}
+
+/** 根据模板 ID 获取 Docker 文件配置，无则返回 undefined。 */
+export function getDockerFiles(
+  templateId: string
+): DockerFilesConfig | undefined {
+  const template = CATEGORY_CATALOG.flatMap(
+    (category) => category.templates
+  ).find((candidate) => candidate.id === templateId);
+  return template?.dockerFiles;
 }

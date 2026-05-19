@@ -7,6 +7,7 @@ import * as clack from '@clack/prompts';
 
 import {
   getCategories,
+  getDockerFiles,
   getOptionalDependenciesForTemplate,
   getTemplatesByCategory
 } from './config.js';
@@ -66,6 +67,20 @@ async function main(): Promise<void> {
           .filter((dependency) => dependency.defaultSelected)
           .map((dependency) => dependency.name);
 
+    const dockerConfig = getDockerFiles(templateId);
+    const shouldAddDocker = dockerConfig
+      ? (interactive ? await askDockerChoice() : false)
+      : false;
+
+    const resolvedDockerFiles = shouldAddDocker && dockerConfig
+      ? {
+          dockerfile: typeof dockerConfig.dockerfile === 'string'
+            ? dockerConfig.dockerfile
+            : dockerConfig.dockerfile[packageManager],
+          configs: dockerConfig.configs
+        }
+      : undefined;
+
     const shouldInstallDependencies =
       args.immediate ?? (interactive ? await askInstallChoice(packageManager) : false);
 
@@ -76,7 +91,8 @@ async function main(): Promise<void> {
       selectedDependencies,
       shouldInstallDependencies,
       allowNonEmptyTarget: directoryStrategy === 'ignore',
-      packageManager
+      packageManager,
+      dockerFiles: resolvedDockerFiles
     });
 
     printSuccessMessage({
@@ -345,6 +361,16 @@ async function askOptionalDependencies(
 async function askInstallChoice(packageManager: PackageManager): Promise<boolean> {
   const result = await clack.confirm({
     message: `Install dependencies now with ${packageManager}?`,
+    initialValue: false
+  });
+
+  return ensureNotCancel(result) as boolean;
+}
+
+/** 询问是否添加 Docker 支持。 */
+async function askDockerChoice(): Promise<boolean> {
+  const result = await clack.confirm({
+    message: 'Add Dockerfile for containerized deployment?',
     initialValue: false
   });
 
