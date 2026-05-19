@@ -85,6 +85,7 @@ async function main(): Promise<void> {
       args.immediate ?? (interactive ? await askInstallChoice(packageManager) : false);
 
     logStep(`Scaffolding with template: ${templateId}`);
+    const startTime = performance.now();
     const targetDir = await createProject({
       projectName,
       templateFolder: templateId,
@@ -94,6 +95,8 @@ async function main(): Promise<void> {
       packageManager,
       dockerFiles: resolvedDockerFiles
     });
+    const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+    logStep(`Done in ${elapsed}s`);
 
     printSuccessMessage({
       projectName,
