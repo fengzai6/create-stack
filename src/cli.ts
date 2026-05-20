@@ -7,20 +7,21 @@ import * as clack from '@clack/prompts';
 
 import {
   getCategories,
+  getDockerFiles,
   getOptionalDependenciesForTemplate,
   getTemplatesByCategory
-} from './config';
+} from './config.js';
 import {
   createProject,
   detectPackageManager,
   type PackageManager
-} from './create';
-import { formatTargetDir, isTrulyEmptyDirectory, parseCliArgs } from './cli-options';
+} from './create.js';
+import { formatTargetDir, isTrulyEmptyDirectory, parseCliArgs } from './cli-options.js';
 import type {
   DisplayColor,
   OptionalDependencyDefinition,
   TemplateDefinition,
-} from './types';
+} from './types.js';
 
 const CANCELLED_MESSAGE = 'PROMPT_CANCELLED';
 const BACK_TO_CATEGORY = '__back_to_category__' as const;
@@ -66,18 +67,36 @@ async function main(): Promise<void> {
           .filter((dependency) => dependency.defaultSelected)
           .map((dependency) => dependency.name);
 
+    const dockerConfig = getDockerFiles(templateId);
+    const shouldAddDocker = dockerConfig
+      ? (interactive ? await askDockerChoice() : false)
+      : false;
+
+    const resolvedDockerFiles = shouldAddDocker && dockerConfig
+      ? {
+          dockerfile: typeof dockerConfig.dockerfile === 'string'
+            ? dockerConfig.dockerfile
+            : dockerConfig.dockerfile[packageManager],
+          configs: dockerConfig.configs
+        }
+      : undefined;
+
     const shouldInstallDependencies =
       args.immediate ?? (interactive ? await askInstallChoice(packageManager) : false);
 
     logStep(`Scaffolding with template: ${templateId}`);
+    const startTime = performance.now();
     const targetDir = await createProject({
       projectName,
       templateFolder: templateId,
       selectedDependencies,
       shouldInstallDependencies,
       allowNonEmptyTarget: directoryStrategy === 'ignore',
-      packageManager
+      packageManager,
+      dockerFiles: resolvedDockerFiles
     });
+    const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+    logStep(`Done in ${elapsed}s`);
 
     printSuccessMessage({
       projectName,
@@ -345,6 +364,16 @@ async function askOptionalDependencies(
 async function askInstallChoice(packageManager: PackageManager): Promise<boolean> {
   const result = await clack.confirm({
     message: `Install dependencies now with ${packageManager}?`,
+    initialValue: false
+  });
+
+  return ensureNotCancel(result) as boolean;
+}
+
+/** 询问是否添加 Docker 支持。 */
+async function askDockerChoice(): Promise<boolean> {
+  const result = await clack.confirm({
+    message: 'Add Dockerfile for containerized deployment?',
     initialValue: false
   });
 

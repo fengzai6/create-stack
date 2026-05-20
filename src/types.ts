@@ -19,6 +19,14 @@ export interface OptionalDependencyConfig {
 /** 可选依赖映射，key 为依赖名。 */
 export type OptionalDependencyMap = Record<string, OptionalDependencyConfig>;
 
+/** Docker 文件配置。 */
+export interface DockerFilesConfig {
+  /** Dockerfile 文件名，字符串表示通用，对象表示按包管理器区分。 */
+  dockerfile: string | Record<'npm' | 'yarn' | 'pnpm', string>;
+  /** 配置文件列表，显式指定源文件名和目标文件名。 */
+  configs?: { src: string; dest: string }[];
+}
+
 /** 单个模板定义。 */
 export interface TemplateDefinition {
   id: string;
@@ -27,6 +35,7 @@ export interface TemplateDefinition {
   folder: string;
   color: DisplayColor;
   optionalDependencies?: OptionalDependencyMap;
+  dockerFiles?: DockerFilesConfig;
 }
 
 /** 模板分类定义。 */

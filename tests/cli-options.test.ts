@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { parseCliArgs } from '../src/cli-options';
+import { parseCliArgs } from '../src/cli-options.js';
 
 test('parses short flags and positional target dir', () => {
   const parsed = parseCliArgs(['-h', '-i', '-t', 'react', 'my-app']);

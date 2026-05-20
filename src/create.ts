@@ -13,8 +13,11 @@ import {
 } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
-import { getOptionalDependencyVersion } from './config';
+import { getOptionalDependencyVersion } from './config.js';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const TEMPLATE_RESTORED_FILE_NAMES = {
   _gitignore: '.gitignore'
@@ -27,6 +30,7 @@ export interface CreateProjectOptions {
   shouldInstallDependencies: boolean;
   allowNonEmptyTarget?: boolean;
   packageManager?: PackageManager;
+  dockerFiles?: { dockerfile: string; configs?: { src: string; dest: string }[] };
 }
 
 export type PackageManager = 'npm' | 'yarn' | 'pnpm';
@@ -145,6 +149,12 @@ export async function createProject(options: CreateProjectOptions): Promise<stri
     options.selectedDependencies
   );
   await restoreTemplateIgnoredFiles(targetDir);
+  await removeGitKeepFiles(targetDir);
+  await patchIndexHtml(targetDir, path.basename(targetDir));
+
+  if (options.dockerFiles) {
+    await copyDockerFiles(targetDir, options.dockerFiles);
+  }
 
   const packageManager = options.packageManager ?? detectPackageManager();
   const installPlan = buildInstallPlan(packageManager, options.shouldInstallDependencies);
@@ -212,6 +222,39 @@ async function patchPackageJson(
   await writeFile(packageJsonPath, patchedContent, 'utf8');
 }
 
+/** 递归删除模板中的 .gitkeep 占位文件。 */
+async function removeGitKeepFiles(targetDir: string): Promise<void> {
+  const entries = await readdir(targetDir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const entryPath = path.join(targetDir, entry.name);
+
+    if (entry.isDirectory()) {
+      await removeGitKeepFiles(entryPath);
+      continue;
+    }
+
+    if (entry.name === '.gitkeep') {
+      await unlink(entryPath);
+    }
+  }
+}
+
+/** 将 index.html 中的标题替换为项目名。 */
+async function patchIndexHtml(targetDir: string, projectName: string): Promise<void> {
+  const indexHtmlPath = path.join(targetDir, 'index.html');
+
+  try {
+    await access(indexHtmlPath);
+  } catch {
+    return;
+  }
+
+  const content = await readFile(indexHtmlPath, 'utf8');
+  const patchedContent = content.replace(/<title>.*?<\/title>/, `<title>${projectName}</title>`);
+  await writeFile(indexHtmlPath, patchedContent, 'utf8');
+}
+
 /**
  * npm publish 会丢弃模板中的 .gitignore，这里将占位文件名还原回隐藏文件。
  */
@@ -263,4 +306,22 @@ function runCommand(command: string, args: string[], cwd: string): Promise<void>
       reject(new Error(`Command failed: ${command} ${args.join(' ')}`));
     });
   });
+}
+
+/** 复制 Docker 相关文件到目标目录。 */
+async function copyDockerFiles(
+  targetDir: string,
+  config: NonNullable<CreateProjectOptions['dockerFiles']>
+): Promise<void> {
+  const sourceDir = path.resolve(__dirname, '../../dockerfiles');
+
+  await cp(path.join(sourceDir, config.dockerfile), path.join(targetDir, 'Dockerfile'));
+
+  if (config.configs) {
+    for (const { src, dest } of config.configs) {
+      if (src !== dest) {
+        await cp(path.join(sourceDir, src), path.join(targetDir, dest));
+      }
+    }
+  }
 }

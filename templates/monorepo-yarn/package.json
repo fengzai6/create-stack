@@ -1,0 +1,19 @@
+{
+  "name": "monorepo-yarn",
+  "private": true,
+  "packageManager": "yarn@4.14.1",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "yarn workspaces foreach -Apt run build",
+    "dev": "yarn workspaces foreach -Ap run dev",
+    "lint": "yarn workspaces foreach -Ap run lint",
+    "clean": "yarn workspaces foreach -Ap run clean"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,23 +1,22 @@
 {
   "name": "create-fz-stack",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "A CLI to bootstrap projects from built-in templates.",
+  "type": "module",
   "license": "MIT",
-  "private": false,
   "repository": {
     "type": "git",
     "url": "https://github.com/fengzai6/create-stack"
   },
-  "bin": {
-    "create-fz-stack": "dist/src/cli.js"
-  },
+  "bin": "dist/src/cli.js",
   "files": [
     "dist/src",
     "templates",
+    "dockerfiles",
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && echo '✓ Build successful'",
     "test": "yarn build && node --test dist/tests/*.test.js",
     "test-create": "yarn build && node scripts/test-create.js",
     "check-templates": "node scripts/check-templates.js",
@@ -29,10 +28,11 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@clack/prompts": "^1.1.0"
+    "@clack/prompts": "^1.4.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
     "typescript": "^5.8.3"
-  }
+  },
+  "packageManager": "yarn@4.14.1"
 }

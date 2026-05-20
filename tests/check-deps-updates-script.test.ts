@@ -4,41 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-type OutdatedInfo = {
-  current: string;
-  wanted: string;
-  latest: string;
-};
-
-type PlannedUpdate = {
-  name: string;
-  section:
-    | 'dependencies'
-    | 'devDependencies'
-    | 'peerDependencies'
-    | 'optionalDependencies'
-    | 'config';
-  currentRange: string;
-  latest: string;
-  nextRange: string;
-};
-
-type ScriptModule = {
-  buildUpdatedRange: (currentRange: string, latestVersion: string) => string;
-  planUpdates: (
-    packageJson: Record<string, unknown>,
-    outdatedMap: Record<string, OutdatedInfo>
-  ) => PlannedUpdate[];
-  applyUpdates: (packageJsonPath: string, updates: PlannedUpdate[]) => Promise<void>;
-  parseConfigDependencyRanges: (configContent: string) => Record<string, string>;
-  planConfigUpdates: (
-    configContent: string,
-    outdatedMap: Record<string, OutdatedInfo>
-  ) => PlannedUpdate[];
-  applyConfigUpdates: (configPath: string, updates: PlannedUpdate[]) => Promise<void>;
-};
-
 const scriptPath = path.resolve(process.cwd(), 'scripts', 'check-deps-updates.js');
+const scriptModule = await import(scriptPath);
 const {
   buildUpdatedRange,
   planUpdates,
@@ -46,7 +13,7 @@ const {
   parseConfigDependencyRanges,
   planConfigUpdates,
   applyConfigUpdates
-} = require(scriptPath) as ScriptModule;
+} = scriptModule as typeof import('../scripts/check-deps-updates.js');
 
 test('buildUpdatedRange keeps ^ and ~ prefix', () => {
   assert.equal(buildUpdatedRange('^1.2.3', '2.0.0'), '^2.0.0');

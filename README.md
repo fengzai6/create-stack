@@ -115,3 +115,8 @@ yarn check-deps-updates
 ```bash
 npm publish --access public
 ```
+
+## TODO
+
+- [ ] 增加 monorepo 模板
+- [ ] 更新同步 vite 的提示词

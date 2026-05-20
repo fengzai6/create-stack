@@ -1,9 +1,13 @@
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { spawnSync } = require('node:child_process');
-const readline = require('node:readline/promises');
-const process = require('node:process');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import readline from 'node:readline/promises';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const DEPENDENCY_SECTIONS = [
   'dependencies',
@@ -24,7 +28,7 @@ function isIdentifier(input) {
   return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(input);
 }
 
-function buildUpdatedRange(currentRange, latestVersion) {
+export function buildUpdatedRange(currentRange, latestVersion) {
   if (typeof currentRange !== 'string' || currentRange.length === 0) {
     return latestVersion;
   }
@@ -40,7 +44,7 @@ function buildUpdatedRange(currentRange, latestVersion) {
   return latestVersion;
 }
 
-function planUpdates(packageJson, outdatedMap) {
+export function planUpdates(packageJson, outdatedMap) {
   const updates = [];
 
   for (const [dependencyName, info] of Object.entries(outdatedMap)) {
@@ -84,7 +88,7 @@ function planUpdates(packageJson, outdatedMap) {
   return updates;
 }
 
-async function applyUpdates(packageJsonPath, updates) {
+export async function applyUpdates(packageJsonPath, updates) {
   const content = await fs.promises.readFile(packageJsonPath, 'utf8');
   const packageJson = JSON.parse(content);
 
@@ -141,7 +145,7 @@ function getConfigBlockRange(configContent) {
   };
 }
 
-function parseConfigDependencyRanges(configContent) {
+export function parseConfigDependencyRanges(configContent) {
   const blockRange = getConfigBlockRange(configContent);
   if (!blockRange) {
     return {};
@@ -165,7 +169,7 @@ function parseConfigDependencyRanges(configContent) {
   return result;
 }
 
-function planConfigUpdates(configContent, outdatedMap) {
+export function planConfigUpdates(configContent, outdatedMap) {
   const ranges = parseConfigDependencyRanges(configContent);
   const updates = [];
 
@@ -226,7 +230,7 @@ function getOutdatedMapForRanges(dependencyRanges) {
   }
 }
 
-async function applyConfigUpdates(configPath, updates) {
+export async function applyConfigUpdates(configPath, updates) {
   const content = await fs.promises.readFile(configPath, 'utf8');
   const blockRange = getConfigBlockRange(content);
   if (!blockRange || updates.length === 0) {
@@ -256,7 +260,7 @@ async function applyConfigUpdates(configPath, updates) {
   await fs.promises.writeFile(configPath, nextContent, 'utf8');
 }
 
-function findPackageJsonPaths(rootDir) {
+export function findPackageJsonPaths(rootDir) {
   const packageJsonPaths = [path.join(rootDir, 'package.json')];
   const templatesDir = path.join(rootDir, 'templates');
 
@@ -298,7 +302,7 @@ async function checkConfigTarget(rootDir) {
   return null;
 }
 
-async function collectUpdateTargets(rootDir, configOnly = false) {
+export async function collectUpdateTargets(rootDir, configOnly = false) {
   const targets = [];
 
   if (configOnly) {
@@ -397,20 +401,10 @@ async function run() {
   console.log(`Done. Updated ${targets.length} file(s), ${totalUpdateCount} dependency range(s).`);
 }
 
-if (require.main === module) {
+const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+if (isMainModule) {
   run().catch((error) => {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
   });
 }
-
-module.exports = {
-  buildUpdatedRange,
-  planUpdates,
-  applyUpdates,
-  parseConfigDependencyRanges,
-  planConfigUpdates,
-  applyConfigUpdates,
-  findPackageJsonPaths,
-  collectUpdateTargets
-};
