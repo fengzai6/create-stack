@@ -22,7 +22,7 @@ export function getTemplateDirs() {
 }
 
 export function getCheckCommands() {
-  return [['install'], ['lint'], ['build']];
+  return [['install', '--no-immutable'], ['lint'], ['build']];
 }
 
 export function resolveTemplateDirs(selectedTemplateDirs) {
