@@ -22,9 +22,7 @@ export function getTemplateDirs() {
 }
 
 export function getCheckCommands() {
-  const installArgs = process.env.CI ? ['install', '--frozen-lockfile'] : ['install'];
-
-  return [installArgs, ['lint'], ['build']];
+  return [['install'], ['lint'], ['build']];
 }
 
 export function resolveTemplateDirs(selectedTemplateDirs) {
