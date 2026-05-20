@@ -76,9 +76,21 @@ function run() {
   for (const templateDir of templateDirs) {
     console.log(`\n[template] ${templateDir}`);
 
+    const templatePath = path.join(TEMPLATE_ROOT, templateDir);
+    const lockPath = path.join(templatePath, 'yarn.lock');
+    const hadLock = fs.existsSync(lockPath);
+
+    if (!hadLock) {
+      fs.writeFileSync(lockPath, '');
+    }
+
     for (const commandArgs of checkCommands) {
       console.log(`[run] yarn ${commandArgs.join(' ')}`);
       runTemplateCommand(templateDir, commandArgs);
+    }
+
+    if (!hadLock) {
+      fs.unlinkSync(lockPath);
     }
   }
 }
