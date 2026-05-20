@@ -123,7 +123,7 @@ test('publishes only runtime dist output and uses _gitignore placeholders in tem
     files?: string[];
   };
 
-  assert.deepEqual(packageJson.files, ['dist/src', 'templates', 'README.md']);
+  assert.deepEqual(packageJson.files, ['dist/src', 'templates', 'dockerfiles', 'README.md']);
 
   const templateDirectories = [
     'react-router-tailwind',

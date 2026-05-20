@@ -11,7 +11,7 @@ import {
 test('returns expected category ids in display order', () => {
   const categories = getCategories();
   assert.ok(categories.length > 0);
-  assert.deepEqual(categories.map((category) => category.id), ['frontend']);
+  assert.deepEqual(categories.map((category) => category.id), ['frontend', 'monorepo']);
 });
 
 test('returns template list by category', () => {
