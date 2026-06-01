@@ -2,7 +2,7 @@ name: Sync with create-vite
 
 on:
   schedule:
-    - cron: '0 9 * * 1' # 每周一 09:00 UTC
+    - cron: "0 9 * * 1" # 每周一 09:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -38,7 +38,6 @@ jobs:
           mkdir -p ~/.codex
           cat > ~/.codex/config.toml <<EOF
           openai_base_url = "${{ secrets.OPENAI_BASE_URL }}"
-          model = "gpt-5.4"
           EOF
           echo '{"OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY }}"}' > ~/.codex/auth.json
 
