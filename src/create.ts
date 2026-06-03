@@ -25,6 +25,7 @@ const TEMPLATE_RESTORED_FILE_NAMES = {
 
 export interface CreateProjectOptions {
   projectName: string;
+  targetDir?: string;
   templateFolder: string;
   selectedDependencies: string[];
   shouldInstallDependencies: boolean;
@@ -134,7 +135,7 @@ export function buildInstallPlan(
 
 /** 创建项目：复制模板 -> 生成安装计划 -> 顺序执行安装命令。 */
 export async function createProject(options: CreateProjectOptions): Promise<string> {
-  const targetDir = path.resolve(process.cwd(), options.projectName);
+  const targetDir = path.resolve(process.cwd(), options.targetDir ?? options.projectName);
   await ensureTargetDirectory(targetDir, Boolean(options.allowNonEmptyTarget));
 
   const templateDir = resolveTemplatePath(options.templateFolder);
@@ -145,12 +146,15 @@ export async function createProject(options: CreateProjectOptions): Promise<stri
 
   await patchPackageJson(
     targetDir,
-    path.basename(targetDir),
+    options.targetDir === '.' ? options.projectName : path.basename(targetDir),
     options.selectedDependencies
   );
   await restoreTemplateIgnoredFiles(targetDir);
   await removeGitKeepFiles(targetDir);
-  await patchIndexHtml(targetDir, path.basename(targetDir));
+  await patchIndexHtml(
+    targetDir,
+    options.targetDir === '.' ? options.projectName : path.basename(targetDir)
+  );
 
   if (options.dockerFiles) {
     await copyDockerFiles(targetDir, options.dockerFiles);

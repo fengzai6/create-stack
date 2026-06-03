@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -112,6 +112,34 @@ test('restores _gitignore to .gitignore after project creation', async () => {
 
     assert.equal(existsSync(path.join(projectDirectory, '.gitignore')), true);
     assert.equal(existsSync(path.join(projectDirectory, '_gitignore')), false);
+  } finally {
+    process.chdir(currentWorkingDirectory);
+  }
+});
+
+test('creates project in current directory when target dir is provided', async () => {
+  const currentWorkingDirectory = process.cwd();
+  const tempDirectory = mkdtempSync(path.join(os.tmpdir(), 'create-stack-test-'));
+
+  process.chdir(tempDirectory);
+
+  try {
+    const projectDirectory = await createProject({
+      projectName: 'demo-app',
+      targetDir: '.',
+      templateFolder: 'react-tailwind',
+      selectedDependencies: [],
+      shouldInstallDependencies: false,
+      packageManager: 'npm'
+    });
+
+    assert.equal(realpathSync(projectDirectory), realpathSync(tempDirectory));
+    assert.equal(existsSync(path.join(tempDirectory, 'package.json')), true);
+
+    const packageJson = JSON.parse(
+      readFileSync(path.join(tempDirectory, 'package.json'), 'utf8')
+    ) as { name?: string };
+    assert.equal(packageJson.name, 'demo-app');
   } finally {
     process.chdir(currentWorkingDirectory);
   }

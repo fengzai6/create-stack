@@ -2,6 +2,7 @@ export interface ParsedCliArgs {
   template?: string;
   help: boolean;
   overwrite: boolean;
+  cwd?: boolean;
   immediate?: boolean;
   interactive?: boolean;
   targetDir?: string;
@@ -13,6 +14,7 @@ export interface ParsedCliArgs {
  * - `-h` / `--help`
  * - `-t` / `--template <name>`
  * - `--overwrite`
+ * - `--cwd`
  * - `-i` / `--immediate`
  * - `--interactive` / `--no-interactive`
  */
@@ -36,6 +38,11 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
 
     if (token === '--overwrite') {
       parsed.overwrite = true;
+      continue;
+    }
+
+    if (token === '--cwd') {
+      parsed.cwd = true;
       continue;
     }
 
@@ -83,6 +90,10 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
 
   if (positionals.length > 0) {
     parsed.targetDir = formatTargetDir(positionals[0]);
+  }
+
+  if (parsed.cwd && parsed.targetDir) {
+    throw new Error('--cwd cannot be used with a target directory');
   }
 
   return parsed;

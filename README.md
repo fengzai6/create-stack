@@ -20,6 +20,12 @@ create-fz-stack
 yarn create fz-stack
 ```
 
+在当前目录生成：
+
+```bash
+yarn create fz-stack --cwd
+```
+
 命令格式：
 
 ```bash
@@ -31,6 +37,7 @@ create-fz-stack [directory] [options]
 - `-h, --help`：显示帮助信息
 - `-t, --template <name>`：指定模板（当前支持 `react-tailwind`、`react-tailwind-antd`、`react-router-tailwind`、`react-router-tailwind-antd`）
 - `--overwrite`：当目标目录非空时，删除原有文件后继续
+- `--cwd`：在当前目录生成项目，不能和 `[directory]` 同时使用
 - `-i, --immediate`：创建完成后立即安装依赖
 - `--interactive`：强制开启交互模式
 - `--no-interactive`：强制关闭交互模式

@@ -27,6 +27,13 @@ test('parses long flags including no-interactive and overwrite', () => {
   assert.equal(parsed.targetDir, 'api-app');
 });
 
+test('parses cwd flag for current directory scaffolding', () => {
+  const parsed = parseCliArgs(['--cwd']);
+
+  assert.equal(parsed.cwd, true);
+  assert.equal(parsed.targetDir, undefined);
+});
+
 test('defaults booleans when not provided', () => {
   const parsed = parseCliArgs([]);
 
@@ -39,4 +46,11 @@ test('defaults booleans when not provided', () => {
 test('throws on missing --template value', () => {
   assert.throws(() => parseCliArgs(['--template']), /requires a value/);
   assert.throws(() => parseCliArgs(['-t']), /requires a value/);
+});
+
+test('throws when cwd flag is combined with target dir', () => {
+  assert.throws(
+    () => parseCliArgs(['--cwd', 'my-app']),
+    /--cwd cannot be used with a target directory/
+  );
 });

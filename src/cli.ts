@@ -53,8 +53,9 @@ async function main(): Promise<void> {
     const packageManager = detectPackageManager();
 
     const projectName = await resolveProjectName(args.targetDir, interactive);
+    const targetDirectory = args.cwd ? '.' : projectName;
     const directoryStrategy = await resolveDirectoryStrategy(
-      projectName,
+      targetDirectory,
       args.overwrite,
       interactive
     );
@@ -88,6 +89,7 @@ async function main(): Promise<void> {
     const startTime = performance.now();
     const targetDir = await createProject({
       projectName,
+      targetDir: targetDirectory,
       templateFolder: templateId,
       selectedDependencies,
       shouldInstallDependencies,
@@ -100,6 +102,7 @@ async function main(): Promise<void> {
 
     printSuccessMessage({
       projectName,
+      targetDirectory,
       targetDir,
       shouldInstallDependencies,
       packageManager
@@ -398,6 +401,7 @@ function ensureNotCancel<T>(result: T | symbol): T {
 /** 输出创建成功后的下一步操作提示。 */
 function printSuccessMessage(input: {
   projectName: string;
+  targetDirectory: string;
   targetDir: string;
   shouldInstallDependencies: boolean;
   packageManager: PackageManager;
@@ -406,7 +410,9 @@ function printSuccessMessage(input: {
   lines.push(`Location: ${input.targetDir}`);
   lines.push('');
   lines.push('Next steps:');
-  lines.push(`  cd ${input.projectName}`);
+  if (input.targetDirectory !== '.') {
+    lines.push(`  cd ${input.projectName}`);
+  }
   if (!input.shouldInstallDependencies) {
     lines.push(`  ${getInstallCommand(input.packageManager)}`);
   }
@@ -446,6 +452,7 @@ function getHelpMessage(): string {
     '  -h, --help                     show this help message',
     '  -t, --template <name>          use a specific template',
     '  --overwrite                    remove existing files if target directory is not empty',
+    '  --cwd                          scaffold into the current directory',
     '  -i, --immediate                install dependencies immediately',
     '  --interactive                  force interactive mode',
     '  --no-interactive               force non-interactive mode',
