@@ -11,7 +11,7 @@ import { omit } from "./utils.js";
 // 前端类模板可选依赖配置（含默认勾选策略），以依赖名为 key 便于按模板裁剪。
 const FRONTEND_OPTIONAL_DEPENDENCIES = {
   axios: {
-    version: "^1.17.0",
+    version: "^1.18.1",
     defaultSelected: true,
     description: "基于 Promise 的 HTTP 请求库",
   },
@@ -31,27 +31,27 @@ const FRONTEND_OPTIONAL_DEPENDENCIES = {
     description: "轻量日期时间处理库",
   },
   "es-toolkit": {
-    version: "^1.47.0",
+    version: "^1.49.0",
     defaultSelected: true,
     description: "现代 JavaScript 工具函数库",
   },
   antd: {
-    version: "^6.4.3",
+    version: "^6.5.0",
     defaultSelected: false,
     description: "Ant Design 组件库",
   },
   "@ant-design/icons": {
-    version: "^6.2.5",
+    version: "^6.3.2",
     defaultSelected: false,
     description: "Ant Design 图标库",
   },
   "react-router": {
-    version: "^7.17.0",
+    version: "^8.2.0",
     defaultSelected: false,
     description: "React 声明式路由",
   },
   "@chenglou/pretext": {
-    version: "^0.0.7",
+    version: "^0.0.8",
     defaultSelected: false,
     description: "文本预处理库",
   },
