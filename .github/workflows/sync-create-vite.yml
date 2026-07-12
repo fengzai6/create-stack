@@ -30,6 +30,18 @@ jobs:
           echo "=== create-vite version ==="
           cat package/package.json | grep '"version"'
 
+          # 本项目模板对应 create-vite 的 React + TypeScript + React Compiler + ESLint 选项。
+          # 默认解包的 template-react-ts 是 Oxlint 版本，不能直接作为对比基线。
+          rm -rf /tmp/create-vite-eslint-baseline
+          node /tmp/create-vite/package/index.js /tmp/create-vite-eslint-baseline \
+            --template react-compiler-ts \
+            --eslint \
+            --no-immediate \
+            --no-interactive \
+            --overwrite
+          echo "=== eslint baseline files ==="
+          ls -la /tmp/create-vite-eslint-baseline
+
       - name: Install Codex CLI
         run: npm install -g @openai/codex
 
@@ -47,22 +59,42 @@ jobs:
           codex exec \
             --dangerously-bypass-approvals-and-sandbox \
             "你是一个专业的前端工程师。
+            背景：
+            1. create-vite 对 React 模板默认使用 Oxlint；只有选择 ESLint 时才会生成 eslint.config.js，并移除 .oxlintrc.json / oxlint 依赖。
+            2. create-vite 的 React Compiler 是可选模板变体（react-compiler-ts），不是默认 template-react-ts。
+            3. 本项目 templates/ 下的 React 模板对齐的是：React + TypeScript + React Compiler + ESLint。
+            4. 因此对比基线必须使用 /tmp/create-vite-eslint-baseline（由 create-vite --template react-compiler-ts --eslint 生成），不要直接拿 /tmp/create-vite/package/template-react-ts（默认 Oxlint、未启用 React Compiler）当基线。
+            5. monorepo-yarn 与 create-vite 单模板结构不同，除非上游变更明确可复用，否则不要强行同步。
+
             第一阶段：同步更新
-            1. 请对比 /tmp/create-vite/package/template-react-ts 与本项目 templates/ 目录下各模板的配置文件差异。
-            2. 重点关注：vite.config.ts, tsconfig.json, tsconfig.app.json, tsconfig.node.json, eslint.config.js, index.html, 以及 package.json 中的 devDependencies（vite、typescript、eslint 相关）。
-            3. 将 create-vite 上游的合理更新同步到本项目的 templates/ 下对应文件中。注意保留本项目已有的自定义内容（如 tailwind、antd、react-router 相关配置）。
-            4. 不要执行任何 git 命令，不要修改 templates/ 下的 node_modules 目录。
+            1. 对比 /tmp/create-vite-eslint-baseline 与本项目 templates/ 下各 React 模板的配置文件差异。
+            2. 重点关注：
+               - vite.config.ts
+               - tsconfig.json / tsconfig.app.json / tsconfig.node.json
+               - eslint.config.js
+               - index.html
+               - package.json 中的 scripts 与 devDependencies（vite、typescript、eslint 相关、React Compiler 相关：@rolldown/plugin-babel、babel-plugin-react-compiler、@babel/core、@types/babel__core）
+               - 若上游 README 中与 ESLint / React Compiler 相关的配置说明有稳定更新，也可同步到模板 README，但不要覆盖本项目自定义说明
+            3. 将 create-vite 上游的合理更新同步到本项目 templates/ 下对应文件中。
+            4. 必须保留本项目已有自定义内容，包括但不限于：
+               - tailwind / antd / react-router 相关依赖与配置
+               - 路径别名 @/*
+               - prettier 与 prettier-plugin-tailwindcss
+               - 本项目额外的 eslint 规则（如 type-aware parserOptions、@typescript-eslint/no-deprecated）
+               - 本项目自定义的 vite codeSplitting / resolve.alias 等配置
+            5. 不要把上游默认 Oxlint 方案同步进来；不要删除本项目的 eslint 体系，也不要新增 .oxlintrc.json / oxlint 依赖。
+            6. 不要执行任何 git 命令，不要修改 templates/ 下的 node_modules 目录，不要新增 package-lock.json。
 
             第二阶段：Build 检查与修复
-            1. 如果完成了同步修改，请从 templates/ 目录下随机选择一个受影响的模板（优先选择复杂的模板，如 react-router-tailwind-antd）。
+            1. 如果完成了同步修改，请从 templates/ 目录下选择一个受影响的模板（优先选择复杂的模板，如 react-router-tailwind-antd）。
             2. 在该模板目录下尝试执行 build 检查：
-               - 执行 npm install (使用 --no-package-lock 以免产生多余 diff)。
-               - 执行 npm run build 进行构建。
+               - 执行 npm install（使用 --no-package-lock 以免产生多余 diff）
+               - 执行 npm run build 进行构建
             3. 如果构建失败：
-               - 仔细分析错误日志。
-               - 修改本项目中相关文件（如 tsconfig 或代码）以修复 build 失败的问题。
-               - 再次执行 npm run build 验证修复效果。
-            4. 完成后，将同步变更和 Build 检查的结果（包括选择的模板、修复过程等）详细记录并在 /tmp/sync-summary.md 中以 markdown 格式输出。"
+               - 仔细分析错误日志
+               - 修改本项目中相关文件（如 tsconfig、资源引用或代码）以修复 build 失败
+               - 再次执行 npm run build 验证修复效果
+            4. 完成后，将同步变更和 Build 检查结果（包括选择的模板、对比基线、修复过程等）写入 /tmp/sync-summary.md。"
 
       - name: 检查是否有变更
         id: check
